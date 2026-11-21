@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, CheckSquare } from 'lucide-react';
+import { cleanInputText, isValidInput } from '../../utils/sanitize';
+import { X, CheckSquare, AlertCircle } from 'lucide-react';
 
 interface AddChecklistModalProps {
   isOpen: boolean;
@@ -11,17 +12,27 @@ export const AddChecklistModal: React.FC<AddChecklistModalProps> = ({ isOpen, on
   const { addChecklist } = useApp();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<'인원점검' | '준비물' | '일정점검'>('준비물');
+  const [errorMessage, setErrorMessage] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      alert('체크 항목을 입력해주세요.');
+
+    if (!isValidInput(title, 2)) {
+      setErrorMessage('항목 내용을 최소 2자 이상 입력해주세요 (공백 제외).');
       return;
     }
-    addChecklist(title.trim(), category);
+
+    const cleanTitle = cleanInputText(title);
+    if (!cleanTitle) {
+      setErrorMessage('유효한 항목 내용을 입력해주세요.');
+      return;
+    }
+
+    addChecklist(cleanTitle, category);
     setTitle('');
+    setErrorMessage('');
     onClose();
   };
 
@@ -42,6 +53,13 @@ export const AddChecklistModal: React.FC<AddChecklistModalProps> = ({ isOpen, on
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          {errorMessage && (
+            <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-1.5 text-rose-700 text-xs font-semibold">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
               분류
@@ -72,7 +90,10 @@ export const AddChecklistModal: React.FC<AddChecklistModalProps> = ({ isOpen, on
               type="text"
               placeholder="예: 돼지코 110V 변환 어댑터 챙기기"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (errorMessage) setErrorMessage('');
+              }}
               className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />

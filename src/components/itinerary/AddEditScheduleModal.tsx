@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ItineraryItem, ScheduleCategory, ScheduleStatus } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X } from 'lucide-react';
+import { cleanInputText, isValidInput } from '../../utils/sanitize';
+import { X, AlertCircle } from 'lucide-react';
 
 interface AddEditScheduleModalProps {
   isOpen: boolean;
@@ -23,8 +24,10 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
   const [location, setLocation] = useState<string>('');
   const [memo, setMemo] = useState<string>('');
   const [status, setStatus] = useState<ScheduleStatus>('UPCOMING');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
+    setErrorMessage('');
     if (initialItem) {
       setDay(initialItem.day);
       setTime(initialItem.time);
@@ -48,8 +51,20 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      alert('일정 제목을 입력해주세요.');
+
+    // 1. 빈 값 및 공백 전용 입력 검증
+    if (!isValidInput(title, 2)) {
+      setErrorMessage('일정 제목을 최소 2자 이상 입력해주세요 (공백 제외).');
+      return;
+    }
+
+    // 2. XSS 방어: 스크립트 및 위험 태그 정제
+    const cleanTitle = cleanInputText(title);
+    const cleanLocation = cleanInputText(location);
+    const cleanMemo = cleanInputText(memo);
+
+    if (!cleanTitle) {
+      setErrorMessage('유효한 일정 제목을 입력해주세요.');
       return;
     }
 
@@ -58,30 +73,31 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
         ...initialItem,
         day,
         time,
-        title,
+        title: cleanTitle,
         category,
-        location,
-        memo,
+        location: cleanLocation,
+        memo: cleanMemo,
         status,
       });
     } else {
       addItinerary({
         day,
         time,
-        title,
+        title: cleanTitle,
         category,
-        location,
-        memo,
+        location: cleanLocation,
+        memo: cleanMemo,
         status,
       });
     }
 
+    setErrorMessage('');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl border border-slate-200">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">
             {initialItem ? '일정 수정' : '새 일정 추가'}
@@ -95,6 +111,13 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          {errorMessage && (
+            <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-700 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
@@ -113,7 +136,7 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                시간
+                시간 *
               </label>
               <input
                 type="time"
@@ -155,7 +178,10 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
               type="text"
               placeholder="예: 시부야 스카이 전망대"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (errorMessage) setErrorMessage('');
+              }}
               className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue"
               required
             />
@@ -210,6 +236,10 @@ export const AddEditScheduleModal: React.FC<AddEditScheduleModalProps> = ({
               </div>
             </div>
           )}
+
+          <div className="text-[10px] text-slate-400">
+            * 빈 값 및 위험한 HTML 스크립트는 안전하게 무력화되어 텍스트로 보관됩니다.
+          </div>
 
           <div className="flex gap-2 pt-2">
             <button
