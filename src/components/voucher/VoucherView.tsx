@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { VoucherCard } from './VoucherCard';
 import { QRCodeModal } from './QRCodeModal';
+import { TaxiCardModal } from '../sos/TaxiCardModal';
+import { SosModal } from '../sos/SosModal';
 import { VoucherItem } from '../../types';
-import { ShieldCheck, Ticket } from 'lucide-react';
+import { ShieldCheck, Ticket, Car, AlertCircle, ChevronRight } from 'lucide-react';
 
 export const VoucherView: React.FC = () => {
   const { state } = useApp();
   const [filter, setFilter] = useState<'ALL' | 'FLIGHT' | 'HOTEL' | 'ATTRACTION'>('ALL');
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherItem | null>(null);
+  const [isTaxiModalOpen, setIsTaxiModalOpen] = useState(false);
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
 
   const filteredVouchers = state.vouchers.filter((v) => {
     if (filter === 'ALL') return true;
@@ -16,7 +20,7 @@ export const VoucherView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-3.5 pb-20">
       {/* 1. 상단 오프라인 안내 배너 */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5">
         <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -30,8 +34,43 @@ export const VoucherView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. 분류 필터 탭 */}
-      <div className="flex items-center justify-between">
+      {/* 2. Stitch 모달 런처: 호텔 택시 카드 & 긴급 SOS 버튼 */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setIsTaxiModalOpen(true)}
+          className="bg-white hover:bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 shadow-xs flex items-center justify-between text-left transition active:scale-98 group"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <Car className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate">호텔 택시 카드</p>
+              <p className="text-[10px] text-slate-500 truncate">기사용 일본어 카드</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </button>
+
+        <button
+          onClick={() => setIsSosModalOpen(true)}
+          className="bg-white hover:bg-rose-50/60 p-3 rounded-2xl border border-rose-200/80 shadow-xs flex items-center justify-between text-left transition active:scale-98 group"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-rose-900 truncate">긴급 SOS</p>
+              <p className="text-[10px] text-rose-600 truncate">경찰 / 대사관 / 가이드</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-rose-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </button>
+      </div>
+
+      {/* 3. 분류 필터 탭 */}
+      <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-1.5">
           <Ticket className="w-4 h-4 text-brand-indigo" />
           <h2 className="text-sm font-bold text-slate-900">
@@ -62,7 +101,7 @@ export const VoucherView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. 바우처 카드 목록 */}
+      {/* 4. 바우처 카드 목록 */}
       <div className="space-y-3">
         {filteredVouchers.map((voucher) => (
           <VoucherCard
@@ -73,10 +112,22 @@ export const VoucherView: React.FC = () => {
         ))}
       </div>
 
-      {/* 4. QR 코드 확대 팝업 모달 */}
+      {/* 5. 바우처 QR 코드 확대 팝업 모달 */}
       <QRCodeModal
         voucher={selectedVoucher}
         onClose={() => setSelectedVoucher(null)}
+      />
+
+      {/* 6. Stitch 현지어 택시 카드 모달 */}
+      <TaxiCardModal
+        isOpen={isTaxiModalOpen}
+        onClose={() => setIsTaxiModalOpen(false)}
+      />
+
+      {/* 7. Stitch 긴급 SOS 모달 */}
+      <SosModal
+        isOpen={isSosModalOpen}
+        onClose={() => setIsSosModalOpen(false)}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Megaphone } from 'lucide-react';
+import { cleanInputText, isValidInput } from '../../utils/sanitize';
+import { X, Megaphone, AlertCircle } from 'lucide-react';
 
 interface EditNoticeModalProps {
   isOpen: boolean;
@@ -10,20 +11,33 @@ interface EditNoticeModalProps {
 export const EditNoticeModal: React.FC<EditNoticeModalProps> = ({ isOpen, onClose }) => {
   const { state, updateNotice } = useApp();
   const [text, setText] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     setText(state.notice.text);
+    setErrorMessage('');
   }, [state.notice.text, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) {
-      alert('공지 내용을 입력해주세요.');
+    
+    // 1. 빈 값 및 공백 전용 입력 검증
+    if (!isValidInput(text, 2)) {
+      setErrorMessage('공지 내용을 최소 2자 이상 입력해주세요 (공백 제외).');
       return;
     }
-    updateNotice(text.trim());
+
+    // 2. XSS 방어: 위험한 태그 및 특수문자 정제
+    const sanitized = cleanInputText(text);
+    if (!sanitized) {
+      setErrorMessage('유효한 공지 내용을 입력해주세요.');
+      return;
+    }
+
+    updateNotice(sanitized);
+    setErrorMessage('');
     onClose();
   };
 
@@ -46,20 +60,33 @@ export const EditNoticeModal: React.FC<EditNoticeModalProps> = ({ isOpen, onClos
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-              공지 내용 (모든 여행객 상단에 고정 표시됩니다)
+              공지 내용 (모든 여행객 상단에 고정 표시됩니다) *
             </label>
             <textarea
               rows={4}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (errorMessage) setErrorMessage('');
+              }}
               placeholder="예: 내일 조식은 07:30 2층 레스토랑, 버스 탑승은 08:30 로비 집합"
-              className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-amber resize-none leading-relaxed"
+              className={`w-full text-xs p-3 border rounded-lg focus:outline-none focus:ring-2 resize-none leading-relaxed transition ${
+                errorMessage
+                  ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/20'
+                  : 'border-slate-300 focus:ring-brand-amber'
+              }`}
               required
             />
+            {errorMessage && (
+              <p className="flex items-center gap-1 text-[11px] text-rose-600 mt-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errorMessage}</span>
+              </p>
+            )}
           </div>
 
           <div className="text-[11px] text-slate-400">
-            * 저장 즉시 브라우저 LocalStorage에 반영되어 새로고침 후에도 유지됩니다.
+            * 빈 값 및 위험 스크립트는 자동 차단·정제되어 안전하게 보관됩니다.
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -72,7 +99,7 @@ export const EditNoticeModal: React.FC<EditNoticeModalProps> = ({ isOpen, onClos
             </button>
             <button
               type="submit"
-              className="flex-1 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 shadow-sm"
+              className="flex-1 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 shadow-sm transition"
             >
               공지 발행하기
             </button>
